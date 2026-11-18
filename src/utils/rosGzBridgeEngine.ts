@@ -430,7 +430,10 @@ export function createDefaultRos2RuntimeState(
   const heroModel =
     world?.models.find((m) => m.name !== 'ground_plane') || world?.models[0];
   const state: Ros2RuntimeState = {
-    isBridgeRunning: true,
+    // Clean unconnected state: the bridge is started by the user from the Ubuntu
+    // terminal (ros2 run ros_gz_bridge parameter_bridge / ros2 launch ...), exactly
+    // like a real ROS 2 session.
+    isBridgeRunning: false,
     useSimTime: true,
     rosClockSec: 0,
     targetModelName: heroModel?.name || 'ros2_urdf_rover',

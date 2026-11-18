@@ -27,8 +27,24 @@ import {
   resolveMimicJointValues,
   rpyToQuaternion,
 } from '../urdf/urdfCompiler';
+import { poseToMatrix4 } from '../utils/sdfCompiler';
 
 export type CameraPreset = 'iso' | 'top' | 'front' | 'side' | 'reset';
+
+/** Bridged sensor payloads, drawn in the same Z-up frame as the robot (robot sits at origin). */
+export interface RvizSensorData {
+  laserScan: {
+    minAngle: number;
+    maxAngle: number;
+    maxRange: number;
+    ranges: number[];
+    sensorWorldPose: [number, number, number, number, number, number];
+  } | null;
+  odomPose: [number, number, number, number, number, number] | null;
+  odometryTrail: [number, number, number][];
+  showLaserScan: boolean;
+  showOdometry: boolean;
+}
 
 interface RvizViewportProps {
   model: ParsedUrdfModel;
@@ -39,6 +55,7 @@ interface RvizViewportProps {
   selectedNode: { type: 'link' | 'joint'; name: string } | null;
   onSelectNode: (node: { type: 'link' | 'joint'; name: string } | null) => void;
   worldTransforms: Record<string, LinkWorldTransform>;
+  sensors?: RvizSensorData;
   children?: React.ReactNode; // For BottomRvizDock
 }
 
@@ -241,6 +258,7 @@ export const RvizViewport: React.FC<RvizViewportProps> = ({
   selectedNode,
   onSelectNode,
   worldTransforms,
+  sensors,
   children,
 }) => {
   const canvasMountRef = useRef<HTMLDivElement | null>(null);
@@ -256,6 +274,9 @@ export const RvizViewport: React.FC<RvizViewportProps> = ({
   const jointPivotsRef = useRef<Record<string, JointPivotEntry>>({});
   const linkGroupsRef = useRef<Record<string, THREE.Group>>({});
   const interactableMeshesRef = useRef<THREE.Object3D[]>([]);
+
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const sensorGroupRef = useRef<THREE.Group | null>(null);
 
   const visualMeshesRef = useRef<THREE.Mesh[]>([]);
   const collisionObjectsRef = useRef<THREE.Object3D[]>([]);
@@ -392,6 +413,12 @@ export const RvizViewport: React.FC<RvizViewportProps> = ({
     const measureGroup = new THREE.Group();
     measureGroupRef.current = measureGroup;
     scene.add(measureGroup);
+
+    // Bridged ROS 2 sensor data (/scan, /odom) container
+    const sensorGroup = new THREE.Group();
+    sensorGroupRef.current = sensorGroup;
+    scene.add(sensorGroup);
+    sceneRef.current = scene;
 
     // OrbitControls with Z-up
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -1046,6 +1073,123 @@ export const RvizViewport: React.FC<RvizViewportProps> = ({
 
     requestRenderRef.current();
   }, [layers, treeSettings, selectedNode, model]);
+
+  // Rebuild bridged /scan + /odom geometry.
+  // ponytail: world-frame telemetry is shifted into the robot-at-origin frame by the odom pose,
+  // which is what the URDF model is drawn in. Move to a real TF lookup if multi-robot ever lands.
+  useEffect(() => {
+    const group = sensorGroupRef.current;
+    if (!group) return;
+
+    while (group.children.length > 0) {
+      const child = group.children.pop()!;
+      child.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        mesh.geometry?.dispose();
+        const mat = mesh.material as THREE.Material | THREE.Material[] | undefined;
+        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+        else mat?.dispose();
+      });
+    }
+
+    const odomPose = sensors?.odomPose ?? null;
+    // Robot sits at the origin, so subtract its world pose from world-frame sensor data.
+    const offset = odomPose
+      ? [-odomPose[0], -odomPose[1], 0]
+      : [0, 0, 0];
+
+    if (sensors?.showOdometry && odomPose) {
+      const yaw = odomPose[5];
+      const dir = new THREE.Vector3(Math.cos(yaw), Math.sin(yaw), 0).normalize();
+      const origin = new THREE.Vector3(0, 0, 0.04);
+      group.add(new THREE.ArrowHelper(dir, origin, 0.65, 0xf97316, 0.18, 0.1));
+
+      if (sensors.odometryTrail.length >= 2) {
+        const pts = sensors.odometryTrail.map(
+          ([tx, ty, tz]) =>
+            new THREE.Vector3(
+              tx + offset[0],
+              ty + offset[1],
+              tz + offset[2] + 0.02,
+            ),
+        );
+        group.add(
+          new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints(pts),
+            new THREE.LineBasicMaterial({ color: 0x38bdf8 }),
+          ),
+        );
+      }
+    }
+
+    const scan = sensors?.laserScan;
+    if (sensors?.showLaserScan && scan && scan.ranges.length > 0) {
+      const [sx, sy, sz, sroll, spitch, syaw] = scan.sensorWorldPose;
+      const m = poseToMatrix4([
+        sx + offset[0],
+        sy + offset[1],
+        sz + offset[2],
+        sroll,
+        spitch,
+        syaw,
+      ]);
+      const n = scan.ranges.length;
+      const rayPositions: number[] = [];
+      const hitPositions: number[] = [];
+      const originX = sx + offset[0];
+      const originY = sy + offset[1];
+      const originZ = sz + offset[2];
+
+      for (let i = 0; i < n; i++) {
+        const dist = scan.ranges[i];
+        if (!Number.isFinite(dist) || dist <= 0) continue;
+        const angle =
+          n > 1
+            ? scan.minAngle + (i / (n - 1)) * (scan.maxAngle - scan.minAngle)
+            : 0;
+        const lx = dist * Math.cos(angle);
+        const ly = dist * Math.sin(angle);
+        const wx = m[0] * lx + m[1] * ly + m[3];
+        const wy = m[4] * lx + m[5] * ly + m[7];
+        const wz = m[8] * lx + m[9] * ly + m[11];
+        rayPositions.push(originX, originY, originZ, wx, wy, wz);
+        if (dist < scan.maxRange - 0.05) hitPositions.push(wx, wy, wz);
+      }
+
+      if (rayPositions.length > 0) {
+        const rayGeo = new THREE.BufferGeometry();
+        rayGeo.setAttribute(
+          'position',
+          new THREE.Float32BufferAttribute(rayPositions, 3),
+        );
+        group.add(
+          new THREE.LineSegments(
+            rayGeo,
+            new THREE.LineBasicMaterial({
+              color: 0x06b6d4,
+              transparent: true,
+              opacity: 0.32,
+            }),
+          ),
+        );
+      }
+      if (hitPositions.length > 0) {
+        const ptsGeo = new THREE.BufferGeometry();
+        ptsGeo.setAttribute(
+          'position',
+          new THREE.Float32BufferAttribute(hitPositions, 3),
+        );
+        group.add(
+          new THREE.Points(
+            ptsGeo,
+            new THREE.PointsMaterial({ color: 0x22c55e, size: 0.09 }),
+          ),
+        );
+      }
+    }
+
+    requestRenderRef.current();
+  }, [sensors]);
 
   // Update 3D Distance Measurement Markers & Line
   useEffect(() => {

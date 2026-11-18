@@ -61,49 +61,49 @@ export const BottomRvizDock: React.FC<BottomRvizDockProps> = ({
   }[] = [
     {
       key: 'visual',
-      label: 'Visual Mesh',
+      label: 'Visual',
       icon: <Eye className="w-3.5 h-3.5" />,
       accentClass: 'border-sky-500/50 bg-sky-500/15 text-sky-300',
     },
     {
       key: 'collision',
-      label: 'Collision Hull',
+      label: 'Collision',
       icon: <ShieldAlert className="w-3.5 h-3.5" />,
       accentClass: 'border-amber-500/50 bg-amber-500/15 text-amber-300',
     },
     {
       key: 'tfFrames',
-      label: 'TF Axes (RGB)',
+      label: 'TF Axes',
       icon: <Axis3d className="w-3.5 h-3.5" />,
       accentClass: 'border-emerald-500/50 bg-emerald-500/15 text-emerald-300',
     },
     {
       key: 'jointAxes',
-      label: 'Joint Vectors',
+      label: 'Joints',
       icon: <Compass className="w-3.5 h-3.5" />,
       accentClass: 'border-yellow-500/50 bg-yellow-500/15 text-yellow-300',
     },
     {
       key: 'centerOfMass',
-      label: 'Center of Mass',
+      label: 'CoM',
       icon: <Scale className="w-3.5 h-3.5" />,
       accentClass: 'border-pink-500/50 bg-pink-500/15 text-pink-300',
     },
     {
       key: 'inertiaBoxes',
-      label: 'Inertia Tensor',
+      label: 'Inertia',
       icon: <BoxSelect className="w-3.5 h-3.5" />,
       accentClass: 'border-purple-500/50 bg-purple-500/15 text-purple-300',
     },
     {
       key: 'wireframeVisual',
-      label: 'Wireframe Mode',
+      label: 'Wireframe',
       icon: <Layers className="w-3.5 h-3.5" />,
       accentClass: 'border-cyan-500/50 bg-cyan-500/15 text-cyan-300',
     },
     {
       key: 'grid',
-      label: 'Z-Up Grid',
+      label: 'Grid',
       icon: <Grid className="w-3.5 h-3.5" />,
       accentClass: 'border-slate-400/50 bg-slate-700/60 text-slate-200',
     },
@@ -201,9 +201,15 @@ export const BottomRvizDock: React.FC<BottomRvizDockProps> = ({
 
       {/* Collapsible Body */}
       {!collapsed && (
-        <div className="bg-[#111827] border-x border-b border-[#26334d] rounded-b-lg p-3 shadow-xl">
+        <div className="bg-[#111827] border-x border-b border-[#26334d] rounded-b-lg p-3 shadow-xl max-h-[38vh] overflow-y-auto">
           {activeTab === 'layers' ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div
+              className="grid gap-2"
+              style={{
+                // Adapts to the pane width: 4 chips when wide, 2 when the ROS 2 pane is narrow.
+                gridTemplateColumns: 'repeat(auto-fill, minmax(118px, 1fr))',
+              }}
+            >
               {layerItems.map((item) => {
                 const active = layers[item.key];
                 return (
@@ -212,6 +218,7 @@ export const BottomRvizDock: React.FC<BottomRvizDockProps> = ({
                     type="button"
                     onClick={() => onToggleLayer(item.key)}
                     aria-pressed={active}
+                    title={item.label}
                     className={`flex items-center justify-between gap-2 px-3 py-2 text-xs font-medium rounded-md border transition-colors whitespace-nowrap shrink-0 ${
                       active
                         ? item.accentClass

@@ -36,8 +36,6 @@ import {
 } from '../types/simulation';
 import { GazeboSystemsBrowser } from './GazeboSystemsBrowser';
 import {
-  generateRos2BridgeCliCommand,
-  generateRos2BridgeYaml,
 } from '../utils/gzSystemsCatalog';
 
 interface VsCodeIdePaneProps {
@@ -127,14 +125,13 @@ export const VsCodeIdePane: React.FC<VsCodeIdePaneProps> = ({
   const [newFileFolder, setNewFileFolder] = useState<string>('worlds');
 
   const [bottomTab, setBottomTab] = useState<
-    'terminal' | 'problems' | 'controls' | 'plugins' | 'ros2'
+    'terminal' | 'problems' | 'plugins'
   >('terminal');
   const [bottomHeight, setBottomHeight] = useState<number>(240);
   const [terminalInput, setTerminalInput] = useState<string>('');
   const [cmdHistoryIdx, setCmdHistoryIdx] = useState<number>(-1);
   const [showConvertedSdfPreview, setShowConvertedSdfPreview] = useState<boolean>(false);
   const [localModalOpen, setLocalModalOpen] = useState<boolean>(false);
-  const [copiedBridgeYaml, setCopiedBridgeYaml] = useState<boolean>(false);
 
   const showPluginModal = isPluginModalOpen || localModalOpen;
   const setShowPluginModal = (open: boolean) => {
@@ -295,14 +292,6 @@ export const VsCodeIdePane: React.FC<VsCodeIdePaneProps> = ({
     target.addEventListener('pointermove', onMove);
     target.addEventListener('pointerup', onUp);
   };
-
-  const controllableModels = (activeWorld?.models || []).filter(
-    (m) => !m.isStatic && m.name !== 'ground_plane'
-  );
-
-  const worldTopics = activeWorld?.topics || [];
-  const ros2BridgeYaml = activeWorld ? generateRos2BridgeYaml(activeWorld) : '';
-  const ros2BridgeCli = activeWorld ? generateRos2BridgeCliCommand(activeWorld) : '';
 
   return (
     <div className="flex flex-col h-full w-full bg-[#1e1e1e] text-[#cccccc] select-none overflow-hidden border-r border-[#333333] relative">
@@ -843,20 +832,6 @@ export const VsCodeIdePane: React.FC<VsCodeIdePaneProps> = ({
 
             <button
               type="button"
-              data-testid="workbench-tab-ros2"
-              onClick={() => setBottomTab('ros2')}
-              className={`flex items-center gap-1.5 h-8 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-                bottomTab === 'ros2'
-                  ? 'border-[#007acc] text-white'
-                  : 'border-transparent text-[#999999] hover:text-[#cccccc]'
-              }`}
-            >
-              <Share2 className="w-3.5 h-3.5 text-[#4ec9b0]" />
-              <span>ROS 2 Bridge ({worldTopics.length})</span>
-            </button>
-
-            <button
-              type="button"
               onClick={() => setBottomTab('problems')}
               className={`flex items-center gap-1.5 h-8 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
                 bottomTab === 'problems'
@@ -870,18 +845,6 @@ export const VsCodeIdePane: React.FC<VsCodeIdePaneProps> = ({
               </span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setBottomTab('controls')}
-              className={`flex items-center gap-1.5 h-8 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-                bottomTab === 'controls'
-                  ? 'border-[#007acc] text-white'
-                  : 'border-transparent text-[#999999] hover:text-[#cccccc]'
-              }`}
-            >
-              <Sliders className="w-3.5 h-3.5" />
-              <span>Joint &amp; Teleop Actuation</span>
-            </button>
           </div>
 
           <div className="flex items-center gap-2 shrink-0 ml-2">
@@ -898,28 +861,6 @@ export const VsCodeIdePane: React.FC<VsCodeIdePaneProps> = ({
         {/* Tab 1: Ubuntu 24.04 Interactive Terminal */}
         {bottomTab === 'terminal' && (
           <div className="flex-1 flex flex-col min-h-0 bg-[#181818] font-mono text-xs overflow-hidden">
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-[#202020] border-b border-[#2a2a2a] overflow-x-auto shrink-0">
-              <span className="text-[10px] text-[#888888] whitespace-nowrap">Quick CLI:</span>
-              {[
-                `gz sdf -k ${activeFile.path}`,
-                'ros2 launch ros2_ws/ros_gz_sim.launch.py',
-                'ros2 run ros_gz_bridge parameter_bridge',
-                'ros2 topic list',
-                'ros2 topic info /scan --verbose',
-                'gz topic -l',
-                'help',
-              ].map((quickCmd) => (
-                <button
-                  key={quickCmd}
-                  type="button"
-                  onClick={() => onRunTerminalCommand(quickCmd)}
-                  className="px-2 py-0.5 text-[11px] rounded bg-[#2d2d2d] hover:bg-[#3c3c3c] text-[#9cdcfe] whitespace-nowrap shrink-0 transition-colors"
-                >
-                  {quickCmd}
-                </button>
-              ))}
-            </div>
-
             <div className="flex-1 overflow-y-auto p-3 space-y-2 select-text">
               <div className="text-[#6a9955]">
                 Ubuntu 24.04.1 LTS (GNU/Linux 6.8.0-45-generic x86_64) — Gazebo Harmonic (gz-sim8)
@@ -984,73 +925,6 @@ export const VsCodeIdePane: React.FC<VsCodeIdePaneProps> = ({
           </div>
         )}
 
-        {/* Tab 3: ROS 2 Bridge (ros_gz_bridge) & Live gz.msgs Topics */}
-        {bottomTab === 'ros2' && (
-          <div className="flex-1 overflow-y-auto p-3 grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs">
-            <div className="space-y-2 bg-[#202022] p-2.5 rounded border border-[#333333] overflow-y-auto">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-white flex items-center gap-1.5">
-                  <Share2 className="w-3.5 h-3.5 text-[#4ec9b0]" />
-                  <span>Active gz.msgs &harr; ROS 2 Topic Table ({worldTopics.length})</span>
-                </span>
-              </div>
-              <div className="divide-y divide-[#2d2d30] font-mono text-[11px]">
-                {worldTopics.map((t, idx) => (
-                  <div key={`${t.gzTopic}-${idx}`} className="py-1.5 flex flex-col gap-0.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[#9cdcfe] font-semibold truncate">
-                        {t.gzTopic} &rarr; {t.rosTopic}
-                      </span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#2d2d30] text-emerald-400">
-                        {t.sourcePlugin}
-                      </span>
-                    </div>
-                    <div className="text-[#ce9178] text-[10.5px]">
-                      {t.gzMsgType} &harr; {t.rosMsgType} ({t.frequencyHz} Hz · {t.direction})
-                    </div>
-                    <div className="text-[#888888] text-[10.5px] truncate">{t.lastPayload}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col space-y-2 bg-[#202022] p-2.5 rounded border border-[#333333]">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-white">
-                  ros_gz_bridge YAML Configuration
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard?.writeText(ros2BridgeYaml).catch(() => {});
-                    setCopiedBridgeYaml(true);
-                    window.setTimeout(() => setCopiedBridgeYaml(false), 1800);
-                  }}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#007acc] hover:bg-[#1f8ad2] text-white text-[11px]"
-                >
-                  {copiedBridgeYaml ? (
-                    <>
-                      <Check className="w-3 h-3" />
-                      <span>Copied YAML</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3 h-3" />
-                      <span>Copy ros_gz_bridge.yaml</span>
-                    </>
-                  )}
-                </button>
-              </div>
-              <pre className="flex-1 p-2 rounded bg-[#141416] border border-[#2d2d2d] font-mono text-[10.5px] text-[#dcdcaa] overflow-auto whitespace-pre select-text">
-                {ros2BridgeYaml}
-              </pre>
-              <div className="text-[10.5px] font-mono text-[#9cdcfe] bg-[#141416] px-2 py-1 rounded border border-[#2d2d2d] truncate select-text">
-                $ {ros2BridgeCli}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Tab 4: Compiler Problems */}
         {bottomTab === 'problems' && (
           <div className="flex-1 overflow-y-auto p-3 space-y-1.5 font-sans text-xs">
@@ -1097,201 +971,6 @@ export const VsCodeIdePane: React.FC<VsCodeIdePaneProps> = ({
           </div>
         )}
 
-        {/* Tab 5: Interactive Joint Sliders, WASD Teleop & Wind Controller */}
-        {bottomTab === 'controls' && (
-          <div className="flex-1 overflow-y-auto p-3 grid grid-cols-1 xl:grid-cols-2 gap-3 text-xs">
-            <div className="space-y-2.5 bg-[#222222] p-2.5 rounded border border-[#333333]">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-white flex items-center gap-1.5">
-                  <Gamepad2 className="w-3.5 h-3.5 text-[#007acc]" />
-                  <span>Wheeled / Droid Teleop (WASD Keys or Controls)</span>
-                </span>
-              </div>
-
-              {controllableModels.length > 0 ? (
-                <div className="space-y-2">
-                  {controllableModels.slice(0, 2).map((model) => (
-                    <div
-                      key={model.id}
-                      className="flex flex-wrap items-center justify-between gap-2 bg-[#1a1a1a] px-2.5 py-1.5 rounded border border-[#2d2d2d]"
-                    >
-                      <span className="font-mono text-[#9cdcfe] font-medium">{model.name}</span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => onUpdateModelCmdVel(model.id, 1.4, 0, 0)}
-                          className="px-2 py-1 rounded bg-[#2d2d2d] hover:bg-[#007acc] text-white font-mono text-[11px]"
-                        >
-                          W (Fwd)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onUpdateModelCmdVel(model.id, -1.2, 0, 0)}
-                          className="px-2 py-1 rounded bg-[#2d2d2d] hover:bg-[#007acc] text-white font-mono text-[11px]"
-                        >
-                          S (Rev)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onUpdateModelCmdVel(model.id, 0.4, 0, 1.2)}
-                          className="px-2 py-1 rounded bg-[#2d2d2d] hover:bg-[#007acc] text-white font-mono text-[11px]"
-                        >
-                          A (Left)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onUpdateModelCmdVel(model.id, 0.4, 0, -1.2)}
-                          className="px-2 py-1 rounded bg-[#2d2d2d] hover:bg-[#007acc] text-white font-mono text-[11px]"
-                        >
-                          D (Right)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onUpdateModelCmdVel(model.id, 0, 0, 0)}
-                          className="px-2 py-1 rounded bg-rose-900/60 hover:bg-rose-700 text-white font-mono text-[11px]"
-                        >
-                          Stop
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-[#888888]">No dynamic models in active world.</div>
-              )}
-
-              {activeWorld && (
-                <div className="pt-1 border-t border-[#333333] space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-white flex items-center gap-1.5">
-                      <Wind className="w-3.5 h-3.5 text-cyan-400" />
-                      <span>World Aerodynamic Wind Vector (m/s)</span>
-                    </span>
-                    <label className="flex items-center gap-1.5 cursor-pointer text-[11px]">
-                      <input
-                        type="checkbox"
-                        checked={activeWorld.wind.enabled}
-                        onChange={(e) =>
-                          onUpdateWorldWind(
-                            activeWorld.wind.linearVelocity[0] || 2.5,
-                            activeWorld.wind.linearVelocity[1],
-                            activeWorld.wind.linearVelocity[2],
-                            e.target.checked
-                          )
-                        }
-                      />
-                      <span>Enable Wind</span>
-                    </label>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['X', 'Y', 'Z'] as const).map((axisLabel, idx) => (
-                      <div key={axisLabel} className="flex items-center gap-1">
-                        <span className="font-mono text-[#999999] text-[11px]">W{axisLabel}:</span>
-                        <input
-                          type="number"
-                          step="0.5"
-                          value={activeWorld.wind.linearVelocity[idx]}
-                          onChange={(e) => {
-                            const next: [number, number, number] = [
-                              ...activeWorld.wind.linearVelocity,
-                            ];
-                            next[idx] = Number(e.target.value) || 0;
-                            onUpdateWorldWind(next[0], next[1], next[2], true);
-                          }}
-                          aria-label={`Wind velocity ${axisLabel}`}
-                          className="w-full bg-[#181818] border border-[#3c3c3c] rounded px-1.5 py-0.5 font-mono text-white text-[11px]"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2 bg-[#222222] p-2.5 rounded border border-[#333333] overflow-y-auto">
-              <div className="font-semibold text-white flex items-center justify-between">
-                <span>Articulated Joint Controllers (Position / Velocity / Effort)</span>
-              </div>
-              {controllableModels.flatMap((m) =>
-                m.joints.map((j) => ({ model: m, joint: j }))
-              ).length === 0 ? (
-                <div className="text-[#888888] py-2">
-                  Current world has no articulated joints. Load{' '}
-                  <code className="text-[#9cdcfe]">robotic_arm_6dof.sdf</code> or{' '}
-                  <code className="text-[#9cdcfe]">r2d2_starwars.sdf</code> to actuate joints.
-                </div>
-              ) : (
-                controllableModels.map((model) =>
-                  model.joints
-                    .filter((j) => j.type !== 'fixed')
-                    .map((joint) => (
-                      <div
-                        key={joint.id}
-                        className="bg-[#1a1a1a] px-2.5 py-1.5 rounded border border-[#2d2d2d] space-y-1"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-mono text-[11px] text-[#4ec9b0] truncate">
-                            {model.name}::{joint.name}
-                          </span>
-                          <span className="font-mono text-[11px] text-white tabular-nums">
-                            {joint.position.toFixed(2)} rad
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="range"
-                            min={joint.type === 'continuous' ? -3.14 : joint.axis.lower}
-                            max={joint.type === 'continuous' ? 3.14 : joint.axis.upper}
-                            step="0.05"
-                            value={
-                              joint.controlMode === 'position'
-                                ? joint.targetPosition
-                                : joint.controlMode === 'velocity'
-                                ? joint.targetVelocity
-                                : joint.appliedEffort
-                            }
-                            onChange={(e) =>
-                              onUpdateJointTarget(
-                                model.id,
-                                joint.id,
-                                joint.controlMode,
-                                Number(e.target.value)
-                              )
-                            }
-                            aria-label={`Joint ${joint.name} target slider`}
-                            className="flex-1 accent-[#007acc] cursor-pointer"
-                          />
-                          <div className="flex items-center gap-1">
-                            {(['position', 'velocity', 'effort'] as const).map((mode) => (
-                              <button
-                                key={mode}
-                                type="button"
-                                onClick={() =>
-                                  onUpdateJointTarget(
-                                    model.id,
-                                    joint.id,
-                                    mode,
-                                    mode === 'position' ? joint.position : 0
-                                  )
-                                }
-                                className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-mono ${
-                                  joint.controlMode === mode
-                                    ? 'bg-[#007acc] text-white'
-                                    : 'bg-[#2d2d2d] text-[#999999] hover:text-white'
-                                }`}
-                              >
-                                {mode.slice(0, 3)}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                )
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Full Modal Overlay for Gazebo Systems & Plugins Browser */}

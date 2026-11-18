@@ -602,6 +602,8 @@ test('Official ros_gz_bridge strictly enforces bridge state and directional rule
   stepPhysicsWorld(world, 0.01);
 
   const ros2State = createDefaultRos2RuntimeState(world);
+  // The app starts unbridged; the user starts ros_gz_bridge from the terminal.
+  ros2State.isBridgeRunning = true;
   stepRosGzBridgeAndNodes(world, ros2State, 0.01, 0.01);
 
   // With parameter_bridge active, /clock, /scan, /imu, /odom, /joint_states, and /tf cross GZ_TO_ROS ([)
@@ -649,6 +651,8 @@ test('Ubuntu 24.04 terminal executes ROS 2 Jazzy CLI commands (ros2 topic, ros2 
   const world = compileSdfOrUrdf(roverUrdf.content, roverUrdf.path).world!;
   stepPhysicsWorld(world, 0.01);
   const ros2State = createDefaultRos2RuntimeState(world);
+  // ros2 CLI topics only exist once the bridge node has been launched.
+  ros2State.isBridgeRunning = true;
 
   const ctx = {
     cwd: '/home/ubuntu/workspace',

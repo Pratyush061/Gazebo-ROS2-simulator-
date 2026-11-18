@@ -153,6 +153,10 @@ export interface ViewportLayers {
   inertiaBoxes: boolean;
   grid: boolean;
   wireframeVisual: boolean;
+  /** Bridged sensor displays (ROS 2 pane only; absent = disabled). */
+  laserScan?: boolean;
+  odometry?: boolean;
+  imu?: boolean;
 }
 
 export interface CustomMeshAsset {
