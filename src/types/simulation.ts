@@ -344,7 +344,7 @@ export interface Ros2RuntimeState {
 export interface VirtualFile {
   id: string;
   name: string;
-  path: string; // e.g. 'worlds/empty.sdf', 'urdf/diff_drive_rover.urdf', 'ros2_ws/ros_gz_bridge.yaml'
+  path: string; // workspace path, e.g. 'ros2_ws/src/my_robot_gazebo/worlds/empty.sdf'
   folder: string; // e.g. 'worlds' | 'urdf' | 'ros2_ws'
   content: string;
   lastModified: number;

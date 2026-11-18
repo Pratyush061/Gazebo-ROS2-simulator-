@@ -11,6 +11,14 @@ import {
   parseRosGzBridgeYaml,
 } from './rosGzBridgeEngine';
 import { compileSdfOrUrdf } from './sdfCompiler';
+import {
+  baseNameOf,
+  isDirectory,
+  listDirectory,
+  resolveRelativeDir,
+  DEFAULT_BRIDGE_YAML_PATH,
+  DEFAULT_LAUNCH_PATH,
+} from '../data/ros2Workspace';
 
 export interface TerminalCommandContext {
   cwd: string;
@@ -174,69 +182,58 @@ export function executeUbuntuCommand(
     case 'ls': {
       const showLong = args.some((a) => a.startsWith('-'));
       const targetArg = args.find((a) => !a.startsWith('-'));
+      const cwdRel = ctx.cwd.replace(/^\/home\/ubuntu\/workspace\/?/, '');
       const relDir = targetArg
-        ? resolveWorkspacePath(ctx.cwd, targetArg)
-        : ctx.cwd.replace(/^\/home\/ubuntu\/workspace\/?/, '');
+        ? resolveRelativeDir(cwdRel, targetArg)
+        : cwdRel;
 
-      if (!relDir) {
-        // Root workspace: show folders and any top-level files
-        const folders = Array.from(new Set(ctx.files.map((f) => f.folder)));
-        if (!showLong) {
-          return { output: folders.map((f) => `${f}/`).join('  ') };
-        }
-        const lines = [
-          'total ' + (folders.length * 4),
-          'drwxr-xr-x 5 ubuntu ubuntu 4096 Nov 14 09:44 .',
-          'drwxr-xr-x 3 ubuntu ubuntu 4096 Nov 14 09:00 ..',
-          ...folders.map(
-            (f) => `drwxr-xr-x 2 ubuntu ubuntu 4096 Nov 14 09:44 ${f}/`
-          ),
-        ];
-        return { output: lines.join('\n') };
-      }
-
-      const matching = ctx.files.filter(
-        (f) => f.folder === relDir || f.path === relDir
-      );
-      if (matching.length === 0) {
+      const listing = listDirectory(ctx.files, relDir);
+      if (listing.dirs.length === 0 && listing.files.length === 0) {
         return {
-          output: `ls: cannot access '${targetArg || relDir}': No such file or directory`,
+          output: `ls: cannot access '${targetArg || relDir || '.'}': No such file or directory`,
           isError: true,
         };
       }
+
+      const dirNames = listing.dirs.map((d) => `${baseNameOf(d)}/`);
+      const fileNames = listing.files.map((f) => f.name);
+
       if (!showLong) {
-        return { output: matching.map((f) => f.name).join('  ') };
+        return { output: [...dirNames, ...fileNames].join('  ') };
       }
+
       const lines = [
-        `total ${matching.length * 4}`,
-        ...matching.map(
-          (f) =>
-            `-rw-r--r-- 1 ubuntu ubuntu ${String(f.content.length).padStart(5, ' ')} Nov 14 09:44 ${f.name}`
+        `total ${listing.dirs.length * 4 + listing.files.length * 4}`,
+        ...listing.dirs.map(
+          (d) => `drwxr-xr-x 2 ubuntu ubuntu   4096 Nov 14 09:44 ${baseNameOf(d)}/`,
         ),
+        ...listing.files.map((f) => {
+          const size = ctx.files.find((x) => x.path === f.path)?.content.length ?? 0;
+          return `-rw-r--r-- 1 ubuntu ubuntu ${String(size).padStart(5, ' ')} Nov 14 09:44 ${f.name}`;
+        }),
       ];
       return { output: lines.join('\n') };
     }
 
     case 'cd': {
       const target = args[0] || '';
+      const cwdRel = ctx.cwd.replace(/^\/home\/ubuntu\/workspace\/?/, '');
+
       if (!target || target === '~' || target === '/home/ubuntu/workspace') {
         return { output: '', newCwd: '/home/ubuntu/workspace' };
       }
-      if (target === '..') {
+
+      const resolved = resolveRelativeDir(cwdRel, target);
+      if (resolved === '') {
         return { output: '', newCwd: '/home/ubuntu/workspace' };
       }
-      const cleanFolder = target.replace(/^\/+|\/+$/g, '');
-      const folderExists = ctx.files.some((f) => f.folder === cleanFolder);
-      if (folderExists || ['worlds', 'models', 'urdf', 'ros2_ws'].includes(cleanFolder)) {
+      if (!isDirectory(ctx.files, resolved)) {
         return {
-          output: '',
-          newCwd: `/home/ubuntu/workspace/${cleanFolder}`,
+          output: `cd: no such file or directory: ${target}`,
+          isError: true,
         };
       }
-      return {
-        output: `bash: cd: ${target}: No such file or directory`,
-        isError: true,
-      };
+      return { output: '', newCwd: `/home/ubuntu/workspace/${resolved}` };
     }
 
     case 'cat': {
@@ -735,8 +732,8 @@ export function executeUbuntuCommand(
           output: [
             'ROS 2 Jazzy Jalisco CLI (Ubuntu 24.04 LTS)',
             'Available commands:',
-            '  ros2 launch ros2_ws/ros_gz_sim.launch.py',
-            '  ros2 run ros_gz_bridge parameter_bridge --ros-args -p config_file:=ros2_ws/ros_gz_bridge.yaml',
+            '  ros2 launch ' + DEFAULT_LAUNCH_PATH,
+            '  ros2 run ros_gz_bridge parameter_bridge --ros-args -p config_file:=' + DEFAULT_BRIDGE_YAML_PATH,
             '  ros2 run ros_gz_bridge parameter_bridge <topic>@<ros_type>[<gz_type> ...',
             '  ros2 run tf2_ros tf2_echo odom base_footprint',
             '  ros2 topic list | echo <topic> | info <topic> --verbose | hz <topic> | pub <topic> ...',
@@ -747,7 +744,7 @@ export function executeUbuntuCommand(
       }
 
       if (sub === 'launch') {
-        const launchFileArg = args[1] || 'ros2_ws/ros_gz_sim.launch.py';
+        const launchFileArg = args[1] || DEFAULT_LAUNCH_PATH;
         const yamlFile = ctx.files.find((f) =>
           f.path.endsWith('ros_gz_bridge.yaml')
         );

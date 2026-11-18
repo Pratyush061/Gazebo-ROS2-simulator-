@@ -188,6 +188,59 @@ if ((await triBtn.count()) > 0) {
       (await page.isVisible('[data-testid="rviz-displays-panel"]')));
 }
 
+// --- 9c. ROS 2 package folder structure in the explorer ---
+const folderBtn = (name) => page.locator(`button[aria-label*="${name} folder"]`);
+const treeText = async () => page.locator('body').innerText();
+
+check('explorer root shows ros2_ws', (await treeText()).includes('ros2_ws'));
+for (const folder of ['src', 'my_robot_description', 'my_robot_gazebo']) {
+  check(`explorer shows ${folder}/`, (await folderBtn(folder).count()) > 0);
+}
+
+// Expand the description package and open the xacro robot model.
+const descBtn = folderBtn('my_robot_description').first();
+if ((await descBtn.count()) > 0) {
+  const expanded = await page.locator('button[aria-label="Collapse my_robot_description folder"]').count();
+  if (expanded === 0) await descBtn.click();
+  await page.waitForTimeout(300);
+}
+const urdfBtn = folderBtn('urdf').first();
+if ((await urdfBtn.count()) > 0) {
+  const expanded = await page.locator('button[aria-label="Collapse urdf folder"]').count();
+  if (expanded === 0) await urdfBtn.click();
+  await page.waitForTimeout(300);
+}
+check('xacro robot file listed in urdf/', (await treeText()).includes('my_robot.urdf.xacro'));
+
+const xacroRow = page.locator('text=my_robot.urdf.xacro').first();
+if ((await xacroRow.count()) > 0) {
+  await xacroRow.click();
+  await page.waitForTimeout(1200);
+  const body = await treeText();
+  check('xacro opens without compiler errors', !body.includes('Compiler Error'));
+  check('xacro drives the ROS 2 viewport', await page.isVisible('[data-testid="rviz-webgl-canvas"]'));
+  const tfRows = await page.locator('[data-testid="rviz-tf-tree"] input[type="checkbox"]').count();
+  check('xacro TF tree has the macro-built links', tfRows >= 11, `${tfRows} rows`);
+}
+
+// package.xml is a build file, not a broken world.
+const pkgRow = page.locator('text=package.xml').first();
+if ((await pkgRow.count()) > 0) {
+  await pkgRow.click();
+  await page.waitForTimeout(800);
+  check('package.xml opens without compiler errors', !(await treeText()).includes('Compiler Error'));
+}
+
+// Terminal sees the same nested layout.
+const term = page.locator('[aria-label="Ubuntu 24.04 terminal command input"]');
+if ((await term.count()) > 0) {
+  await term.first().fill('ls ros2_ws/src');
+  await term.first().press('Enter');
+  await page.waitForTimeout(700);
+  const out = await treeText();
+  check('terminal ls shows both packages', out.includes('my_robot_description/') && out.includes('my_robot_gazebo/'));
+}
+
 // --- 10. No runtime errors ---
 // The sandbox proxy blocks the Google Fonts stylesheet in index.html (cert), and
 // SwiftShader is expected for headless WebGL — neither comes from app code.

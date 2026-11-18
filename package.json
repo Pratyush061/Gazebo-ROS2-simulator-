@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/urdf/urdfCompiler.test.ts src/urdf/rvizDisplayTree.test.ts src/utils/simulation.test.ts",
+    "test": "tsx --test src/data/ros2Workspace.test.ts src/data/workspaceIntegration.test.ts src/urdf/xacroIncludes.test.ts src/urdf/rvizDisplayTree.test.ts src/urdf/urdfCompiler.test.ts src/utils/simulation.test.ts",
     "test:e2e": "node e2e-check.mjs"
   },
   "dependencies": {

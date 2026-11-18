@@ -20,6 +20,11 @@ import {
 } from './physicsEngine';
 import { executeUbuntuCommand } from './ubuntuTerminal';
 import { DEFAULT_FILES } from '../data/defaultFiles';
+import {
+  DEFAULT_BRIDGE_YAML_PATH,
+  DIRS,
+  FILE_PATHS,
+} from '../data/ros2Workspace';
 import { PrimitiveShapeType } from '../types/simulation';
 import {
   GZ_SYSTEM_TEMPLATES,
@@ -41,7 +46,8 @@ import {
 
 test('all default SDF 1.10, URDF, and ROS 2 ros_gz_bridge workspace files compile cleanly with zero errors', () => {
   for (const file of DEFAULT_FILES) {
-    const result = compileSdfOrUrdf(file.content, file.path);
+    // The workspace is passed in so xacro includes resolve exactly as in the app.
+    const result = compileSdfOrUrdf(file.content, file.path, DEFAULT_FILES);
     const errors = result.diagnostics.filter((d) => d.severity === 'error');
     assert.equal(
       result.isValid,
@@ -421,14 +427,14 @@ test('Ubuntu 24.04 CLI terminal executes ls, gz sdf -k, gz topic, and touch comm
     simTime: 0,
   };
 
-  const lsOut = executeUbuntuCommand('ls worlds', ctx);
+  const lsOut = executeUbuntuCommand(`ls ${DIRS.gazeboWorlds}`, ctx);
   assert.ok(lsOut.output.includes('r2d2_starwars.sdf'));
 
-  const checkOut = executeUbuntuCommand('gz sdf -k worlds/r2d2_starwars.sdf', ctx);
+  const checkOut = executeUbuntuCommand(`gz sdf -k ${FILE_PATHS.r2d2World}`, ctx);
   assert.equal(checkOut.isError, undefined);
   assert.ok(checkOut.output.includes('VALID'));
 
-  const checkUrdfOut = executeUbuntuCommand('gz sdf -k urdf/simple_manipulator.urdf', ctx);
+  const checkUrdfOut = executeUbuntuCommand(`gz sdf -k ${FILE_PATHS.manipulatorUrdf}`, ctx);
   assert.equal(checkUrdfOut.isError, undefined);
   assert.ok(checkUrdfOut.output.includes('VALID'));
 
@@ -581,7 +587,7 @@ test('Official ros_gz_bridge parameter_bridge CLI syntax ([, ], @) and YAML conf
   assert.equal(parsedCmdVel.rosTopic, '/cmd_vel');
 
   // Parse default ros2_ws/ros_gz_bridge.yaml and verify round-trip
-  const yamlFile = DEFAULT_FILES.find((f) => f.path === 'ros2_ws/ros_gz_bridge.yaml')!;
+  const yamlFile = DEFAULT_FILES.find((f) => f.path === DEFAULT_BRIDGE_YAML_PATH)!;
   const { rules, diagnostics } = parseRosGzBridgeYaml(yamlFile.content);
   assert.equal(diagnostics.length, 0, 'Default ros_gz_bridge.yaml should have 0 errors');
   assert.ok(rules.length >= 8, `Expected >= 8 bridge rules, got ${rules.length}`);

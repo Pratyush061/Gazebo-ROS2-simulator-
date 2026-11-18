@@ -10,6 +10,7 @@ import {
   RosGzQosProfile,
   SimModel,
 } from '../types/simulation';
+import { DEFAULT_BRIDGE_YAML_PATH } from '../data/ros2Workspace';
 import { computeModelLinkPoses, computeModelLinkWorldPoses } from './physicsEngine';
 
 /**
@@ -385,7 +386,7 @@ export function serializeRosGzBridgeYaml(rules: RosGzBridgeRule[]): string {
   const lines: string[] = [
     '# Official ROS 2 Jazzy <-> Gazebo Harmonic (gz-sim8) parameter_bridge configuration',
     '# Reference: https://github.com/gazebosim/ros_gz/tree/ros2/ros_gz_bridge',
-    '# CLI: ros2 run ros_gz_bridge parameter_bridge --ros-args -p config_file:=ros2_ws/ros_gz_bridge.yaml',
+    '# CLI: ros2 run ros_gz_bridge parameter_bridge --ros-args -p config_file:=' + DEFAULT_BRIDGE_YAML_PATH,
     '',
   ];
 

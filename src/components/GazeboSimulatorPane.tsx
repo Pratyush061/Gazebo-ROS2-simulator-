@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { DEFAULT_WORLD_PATH } from '../data/ros2Workspace';
 import {
   Menu,
   MoreVertical,
@@ -1230,7 +1231,7 @@ export const GazeboSimulatorPane: React.FC<GazeboSimulatorPaneProps> = ({
                         >
                           ...e/gz/gz-sim8/
                           {selectedModel.sourceFilePath.split('/gz-sim8/')[1] ||
-                            'worlds/empty.sdf'}
+                            DEFAULT_WORLD_PATH}
                         </span>
                       </div>
 

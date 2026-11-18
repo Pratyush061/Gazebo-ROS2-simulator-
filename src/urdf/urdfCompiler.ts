@@ -1047,11 +1047,17 @@ export function compileUrdf(xml: string): ParsedUrdfModel {
   // Pass 4: Structural & Kinematic Tree Validation
   const linkNames = Object.keys(links);
   if (linkNames.length === 0) {
+    // A xacro macro library (urdf/common/*.xacro) legitimately has no links:
+    // it only defines macros that other robots include. Anything else is an error.
+    const isMacroLibrary =
+      xacroExpansion.isXacro && xacroExpansion.macroCount > 0;
     diagnostics.push({
       id: `no-links-${root.line}`,
-      severity: 'error',
+      severity: isMacroLibrary ? 'warning' : 'error',
       line: root.line,
-      message: `No <link> elements found in <robot name="${robotName}">.`,
+      message: isMacroLibrary
+        ? `Xacro macro library: no <link> elements (defines ${xacroExpansion.macroCount} macro(s) for other robots).`
+        : `No <link> elements found in <robot name="${robotName}">.`,
     });
   }
 
@@ -1208,9 +1214,12 @@ export function compileUrdf(xml: string): ParsedUrdfModel {
   }
 
   const hasErrors = diagnostics.some((d) => d.severity === 'error');
+  // A xacro macro library is a valid file with no robot tree of its own.
+  const isMacroLibraryFile =
+    xacroExpansion.isXacro && xacroExpansion.macroCount > 0 && linkNames.length === 0;
 
   return {
-    valid: !hasErrors && rootLink !== null,
+    valid: !hasErrors && (rootLink !== null || isMacroLibraryFile),
     robotName,
     materials,
     links,

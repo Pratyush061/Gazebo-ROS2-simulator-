@@ -1,11 +1,13 @@
 import { VirtualFile } from '../types/simulation';
+import { DEFAULT_URDF_CONFIG_RVIZ } from '../urdf/ros2PackageWorkspace';
+import { DIRS, FILE_PATHS, dirOf } from './ros2Workspace';
 
 export const DEFAULT_FILES: VirtualFile[] = [
   {
     id: 'file-empty-sdf',
     name: 'empty.sdf',
-    path: 'worlds/empty.sdf',
-    folder: 'worlds',
+    path: FILE_PATHS.emptyWorld,
+    folder: dirOf(FILE_PATHS.emptyWorld),
     description: 'Default Gazebo Harmonic empty world with ground_plane and sun light',
     lastModified: Date.now() - 3600000 * 5,
     content: `<?xml version="1.0" ?>
@@ -72,8 +74,8 @@ export const DEFAULT_FILES: VirtualFile[] = [
   {
     id: 'file-r2d2-sdf',
     name: 'r2d2_starwars.sdf',
-    path: 'worlds/r2d2_starwars.sdf',
-    folder: 'worlds',
+    path: FILE_PATHS.r2d2World,
+    folder: dirOf(FILE_PATHS.r2d2World),
     description: 'Star Wars R2-D2 Astromech Droid with rotating dome, differential drive legs, wind & crates',
     lastModified: Date.now() - 3600000 * 4,
     content: `<?xml version="1.0" ?>
@@ -497,8 +499,8 @@ export const DEFAULT_FILES: VirtualFile[] = [
   {
     id: 'file-arm-6dof-sdf',
     name: 'robotic_arm_6dof.sdf',
-    path: 'worlds/robotic_arm_6dof.sdf',
-    folder: 'worlds',
+    path: FILE_PATHS.armWorld,
+    folder: dirOf(FILE_PATHS.armWorld),
     description: '6-DOF articulated industrial robotic arm with parallel gripper and calibration cubes',
     lastModified: Date.now() - 3600000 * 3,
     content: `<?xml version="1.0" ?>
@@ -890,8 +892,8 @@ export const DEFAULT_FILES: VirtualFile[] = [
   {
     id: 'file-rover-4wd-sdf',
     name: 'rover_4wd_warehouse.sdf',
-    path: 'worlds/rover_4wd_warehouse.sdf',
-    folder: 'worlds',
+    path: FILE_PATHS.warehouseWorld,
+    folder: dirOf(FILE_PATHS.warehouseWorld),
     description: '4-Wheel Differential Drive Ground Rover with LiDAR turret and dynamic obstacle barrels',
     lastModified: Date.now() - 3600000 * 2,
     content: `<?xml version="1.0" ?>
@@ -1298,8 +1300,8 @@ export const DEFAULT_FILES: VirtualFile[] = [
   {
     id: 'file-urdf-sample',
     name: 'simple_manipulator.urdf',
-    path: 'urdf/simple_manipulator.urdf',
-    folder: 'urdf',
+    path: FILE_PATHS.manipulatorUrdf,
+    folder: dirOf(FILE_PATHS.manipulatorUrdf),
     description: 'ROS 2 URDF articulated inspection manipulator with relative joint origins, multi-visual links & SDF 1.10 conversion',
     lastModified: Date.now() - 3600000,
     content: `<?xml version="1.0"?>
@@ -1436,8 +1438,8 @@ export const DEFAULT_FILES: VirtualFile[] = [
   {
     id: 'file-urdf-rover',
     name: 'diff_drive_rover.urdf',
-    path: 'urdf/diff_drive_rover.urdf',
-    folder: 'urdf',
+    path: FILE_PATHS.diffDriveUrdf,
+    folder: dirOf(FILE_PATHS.diffDriveUrdf),
     description: 'ROS 2 Differential-Drive Mobile Robot in URDF format with base_footprint, continuous wheel joints & LiDAR',
     lastModified: Date.now() - 1800000,
     content: `<?xml version="1.0"?>
@@ -1675,13 +1677,14 @@ export const DEFAULT_FILES: VirtualFile[] = [
   {
     id: 'file-ros2-bridge-yaml',
     name: 'ros_gz_bridge.yaml',
-    path: 'ros2_ws/ros_gz_bridge.yaml',
-    folder: 'ros2_ws',
+    path: FILE_PATHS.bridgeYaml,
+    folder: dirOf(FILE_PATHS.bridgeYaml),
     description: 'Official ROS 2 <-> Gazebo Harmonic parameter_bridge YAML mapping with QoS & directional rules',
     lastModified: Date.now() - 1800000,
     content: `# Official ROS 2 Jazzy <-> Gazebo Harmonic (gz-sim8) parameter_bridge configuration
 # Reference: https://github.com/gazebosim/ros_gz/tree/ros2/ros_gz_bridge
-# CLI: ros2 run ros_gz_bridge parameter_bridge --ros-args -p config_file:=ros2_ws/ros_gz_bridge.yaml
+# CLI: ros2 run ros_gz_bridge parameter_bridge --ros-args \
+#        -p config_file:=install/my_robot_gazebo/share/my_robot_gazebo/config/ros_gz_bridge.yaml
 
 - ros_topic_name: "/clock"
   gz_topic_name: "/clock"
@@ -1743,8 +1746,8 @@ export const DEFAULT_FILES: VirtualFile[] = [
   {
     id: 'file-ros2-launch-py',
     name: 'ros_gz_sim.launch.py',
-    path: 'ros2_ws/ros_gz_sim.launch.py',
-    folder: 'ros2_ws',
+    path: FILE_PATHS.gzSimLaunch,
+    folder: dirOf(FILE_PATHS.gzSimLaunch),
     description: 'Official ROS 2 Jazzy Launch description starting gz_sim, robot_state_publisher, and ros_gz_bridge',
     lastModified: Date.now() - 1200000,
     content: `import os
@@ -1775,7 +1778,11 @@ def generate_launch_description():
         name='ros_gz_bridge',
         parameters=[
             {
-                'config_file': 'ros2_ws/ros_gz_bridge.yaml',
+                'config_file': os.path.join(
+                    get_package_share_directory('my_robot_gazebo'),
+                    'config',
+                    'ros_gz_bridge.yaml',
+                ),
                 'qos_overrides./tf_static.publisher.durability': 'transient_local',
                 'use_sim_time': use_sim_time,
             }
@@ -1803,8 +1810,8 @@ def generate_launch_description():
   {
     id: 'file-ros2-avoidance-py',
     name: 'obstacle_avoidance_node.py',
-    path: 'ros2_ws/obstacle_avoidance_node.py',
-    folder: 'ros2_ws',
+    path: FILE_PATHS.obstacleNode,
+    folder: dirOf(FILE_PATHS.obstacleNode),
     description: 'Closed-loop rclpy ROS 2 node subscribing to bridged /scan and publishing /cmd_vel Twist',
     lastModified: Date.now() - 900000,
     content: `#!/usr/bin/env python3
@@ -1862,7 +1869,325 @@ def main(args=None):
     node.destroy_node()
     rclpy.shutdown()
 `
-  }
+  },
+  {
+    id: 'file-desc-package-xml',
+    path: FILE_PATHS.descriptionPackageXml,
+    folder: dirOf(FILE_PATHS.descriptionPackageXml),
+    name: FILE_PATHS.descriptionPackageXml.slice(FILE_PATHS.descriptionPackageXml.lastIndexOf('/') + 1),
+    description: 'ament_cmake package manifest for the robot description package',
+    lastModified: Date.now() - 900000,
+    content: `<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>my_robot_description</name>
+  <version>0.1.0</version>
+  <description>URDF, xacro, RViz config and display launch for the simulated robot</description>
+  <maintainer email="pjdev02@gmail.com">Pratyush Jain</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>joint_state_publisher_gui</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>urdf</exec_depend>
+  <exec_depend>xacro</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
+`
+  },
+  {
+    id: 'file-desc-cmake',
+    path: FILE_PATHS.descriptionCMake,
+    folder: dirOf(FILE_PATHS.descriptionCMake),
+    name: FILE_PATHS.descriptionCMake.slice(FILE_PATHS.descriptionCMake.lastIndexOf('/') + 1),
+    description: 'Installs urdf/, launch/ and config/ into the package share directory',
+    lastModified: Date.now() - 900000,
+    content: `cmake_minimum_required(VERSION 3.8)
+project(my_robot_description)
+
+find_package(ament_cmake REQUIRED)
+
+install(
+  DIRECTORY urdf launch config
+  DESTINATION share/\${PROJECT_NAME}
+)
+
+ament_package()
+`
+  },
+  {
+    id: 'file-xacro-inertia',
+    path: FILE_PATHS.inertiaXacro,
+    folder: dirOf(FILE_PATHS.inertiaXacro),
+    name: FILE_PATHS.inertiaXacro.slice(FILE_PATHS.inertiaXacro.lastIndexOf('/') + 1),
+    description: 'Shared box/cylinder inertia macros included by every robot xacro',
+    lastModified: Date.now() - 840000,
+    content: `<?xml version="1.0"?>
+<!-- Shared inertia macros. Every robot in this package includes this file so
+     mass properties are defined exactly once. -->
+<robot name="inertia_macros" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="box_inertia" params="mass x y z">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="\${mass}"/>
+      <inertia
+        ixx="\${mass * (y * y + z * z) / 12}"
+        ixy="0" ixz="0"
+        iyy="\${mass * (x * x + z * z) / 12}"
+        iyz="0"
+        izz="\${mass * (x * x + y * y) / 12}"/>
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="cylinder_inertia" params="mass radius length">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="\${mass}"/>
+      <inertia
+        ixx="\${mass * (3 * radius * radius + length * length) / 12}"
+        ixy="0" ixz="0"
+        iyy="\${mass * (3 * radius * radius + length * length) / 12}"
+        iyz="0"
+        izz="\${mass * radius * radius / 2}"/>
+    </inertial>
+  </xacro:macro>
+</robot>
+`
+  },
+  {
+    id: 'file-xacro-robot',
+    path: FILE_PATHS.robotXacro,
+    folder: dirOf(FILE_PATHS.robotXacro),
+    name: FILE_PATHS.robotXacro.slice(FILE_PATHS.robotXacro.lastIndexOf('/') + 1),
+    description: 'Diff-drive robot built from xacro properties, a wheel macro and common inertia macros',
+    lastModified: Date.now() - 780000,
+    content: `<?xml version="1.0"?>
+<!-- Diff-drive robot built from xacro properties and the shared inertia macros.
+     Compile with: xacro my_robot.urdf.xacro > my_robot.urdf -->
+<robot name="my_robot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:include filename="common/inertia.xacro"/>
+
+  <xacro:property name="base_length" value="0.46"/>
+  <xacro:property name="base_width" value="0.32"/>
+  <xacro:property name="base_height" value="0.14"/>
+  <xacro:property name="base_mass" value="6.0"/>
+  <xacro:property name="wheel_radius" value="0.12"/>
+  <xacro:property name="wheel_width" value="0.06"/>
+  <xacro:property name="wheel_mass" value="0.6"/>
+  <xacro:property name="track" value="0.19"/>
+
+  <material name="teal">
+    <color rgba="0.16 0.62 0.62 1.0"/>
+  </material>
+  <material name="rubber">
+    <color rgba="0.10 0.10 0.10 1.0"/>
+  </material>
+
+  <link name="base_footprint"/>
+
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0.19" rpy="0 0 0"/>
+  </joint>
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="\${base_length} \${base_width} \${base_height}"/>
+      </geometry>
+      <material name="teal"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="\${base_length} \${base_width} \${base_height}"/>
+      </geometry>
+    </collision>
+    <xacro:box_inertia mass="\${base_mass}" x="\${base_length}" y="\${base_width}" z="\${base_height}"/>
+  </link>
+
+  <!-- One wheel macro, four instantiations: no copy-pasted link/joint blocks. -->
+  <xacro:macro name="wheel" params="prefix origin_xyz">
+    <link name="\${prefix}_wheel_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="1.5707 0 0"/>
+        <geometry>
+          <cylinder radius="\${wheel_radius}" length="\${wheel_width}"/>
+        </geometry>
+        <material name="rubber"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="1.5707 0 0"/>
+        <geometry>
+          <cylinder radius="\${wheel_radius}" length="\${wheel_width}"/>
+        </geometry>
+      </collision>
+      <xacro:cylinder_inertia mass="\${wheel_mass}" radius="\${wheel_radius}" length="\${wheel_width}"/>
+    </link>
+    <joint name="\${prefix}_wheel_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="\${prefix}_wheel_link"/>
+      <origin xyz="\${origin_xyz}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:wheel prefix="front_left" origin_xyz="0.16 \${track} 0"/>
+  <xacro:wheel prefix="front_right" origin_xyz="0.16 -\${track} 0"/>
+  <xacro:wheel prefix="rear_left" origin_xyz="-0.16 \${track} 0"/>
+  <xacro:wheel prefix="rear_right" origin_xyz="-0.16 -\${track} 0"/>
+
+  <link name="lidar_link">
+    <visual>
+      <origin xyz="0 0 0.045" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.05" length="0.09"/>
+      </geometry>
+      <material name="teal"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.045" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.05" length="0.09"/>
+      </geometry>
+    </collision>
+    <xacro:cylinder_inertia mass="0.3" radius="0.05" length="0.09"/>
+  </link>
+
+  <joint name="lidar_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="lidar_link"/>
+    <origin xyz="0 0 0.13" rpy="0 0 0"/>
+  </joint>
+</robot>
+`
+  },
+  {
+    id: 'file-display-launch',
+    path: FILE_PATHS.displayLaunch,
+    folder: dirOf(FILE_PATHS.displayLaunch),
+    name: FILE_PATHS.displayLaunch.slice(FILE_PATHS.displayLaunch.lastIndexOf('/') + 1),
+    description: 'Robot-model-only launch: xacro -> robot_state_publisher -> RViz2',
+    lastModified: Date.now() - 720000,
+    content: `import os
+
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import Command, LaunchConfiguration
+from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
+
+
+def generate_launch_description():
+    """Robot model only: URDF -> robot_state_publisher -> RViz2."""
+    package_share = get_package_share_directory('my_robot_description')
+    xacro_path = os.path.join(package_share, 'urdf', 'my_robot.urdf.xacro')
+    rviz_config = os.path.join(package_share, 'config', 'urdf_config.rviz')
+
+    use_sim_time = LaunchConfiguration('use_sim_time', default='false')
+    robot_description = ParameterValue(
+        Command(['xacro ', xacro_path]), value_type=str
+    )
+
+    return LaunchDescription([
+        DeclareLaunchArgument('use_sim_time', default_value='false'),
+        Node(
+            package='robot_state_publisher',
+            executable='robot_state_publisher',
+            parameters=[{
+                'robot_description': robot_description,
+                'use_sim_time': use_sim_time,
+            }],
+            output='screen',
+        ),
+        Node(
+            package='joint_state_publisher_gui',
+            executable='joint_state_publisher_gui',
+            output='screen',
+        ),
+        Node(
+            package='rviz2',
+            executable='rviz2',
+            arguments=['-d', rviz_config],
+            parameters=[{'use_sim_time': use_sim_time}],
+            output='screen',
+        ),
+    ])
+`
+  },
+  {
+    id: 'file-rviz-config',
+    path: FILE_PATHS.rvizConfig,
+    folder: dirOf(FILE_PATHS.rvizConfig),
+    name: FILE_PATHS.rvizConfig.slice(FILE_PATHS.rvizConfig.lastIndexOf('/') + 1),
+    description: 'RViz2 display configuration loaded by display.launch.py',
+    lastModified: Date.now() - 660000,
+    content: DEFAULT_URDF_CONFIG_RVIZ
+  },
+  {
+    id: 'file-gazebo-package-xml',
+    path: FILE_PATHS.gazeboPackageXml,
+    folder: dirOf(FILE_PATHS.gazeboPackageXml),
+    name: FILE_PATHS.gazeboPackageXml.slice(FILE_PATHS.gazeboPackageXml.lastIndexOf('/') + 1),
+    description: 'ament_cmake package manifest for the Gazebo simulation package',
+    lastModified: Date.now() - 600000,
+    content: `<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>my_robot_gazebo</name>
+  <version>0.1.0</version>
+  <description>Gazebo Harmonic SDF worlds, gz_sim launch and ros_gz_bridge configuration</description>
+  <maintainer email="pjdev02@gmail.com">Pratyush Jain</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>ros_gz_sim</exec_depend>
+  <exec_depend>ros_gz_bridge</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>xacro</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
+`
+  },
+  {
+    id: 'file-gazebo-cmake',
+    path: FILE_PATHS.gazeboCMake,
+    folder: dirOf(FILE_PATHS.gazeboCMake),
+    name: FILE_PATHS.gazeboCMake.slice(FILE_PATHS.gazeboCMake.lastIndexOf('/') + 1),
+    description: 'Installs worlds/, launch/, config/ and the avoidance node',
+    lastModified: Date.now() - 540000,
+    content: `cmake_minimum_required(VERSION 3.8)
+project(my_robot_gazebo)
+
+find_package(ament_cmake REQUIRED)
+
+install(
+  DIRECTORY worlds launch config
+  DESTINATION share/\${PROJECT_NAME}
+)
+
+install(
+  PROGRAMS scripts/obstacle_avoidance_node.py
+  DESTINATION lib/\${PROJECT_NAME}
+)
+
+ament_package()
+`
+  },
 ];
 
 

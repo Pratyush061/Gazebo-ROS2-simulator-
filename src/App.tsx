@@ -16,6 +16,14 @@ import {
 } from 'lucide-react';
 import { DEFAULT_FILES } from './data/defaultFiles';
 import {
+  DEFAULT_BRIDGE_YAML_PATH,
+  DEFAULT_LAUNCH_PATH,
+  DEFAULT_ROBOT_PATH,
+  DIRS,
+  isRobotModelPath,
+} from './data/ros2Workspace';
+import { resolveXacroIncludes } from './urdf/xacroIncludes';
+import {
   CompilationResult,
   DebugOverlaySettings,
   LightSpawnType,
@@ -61,7 +69,7 @@ type PaneId = 'ide' | 'ros2' | 'gazebo';
 export function App() {
   // Default to diff_drive_rover.urdf so the user immediately sees the URDF rover + LiDAR + IMU + DiffDrive in both Gazebo & ROS 2
   const initialFile =
-    DEFAULT_FILES.find((f) => f.path === 'urdf/diff_drive_rover.urdf') ||
+    DEFAULT_FILES.find((f) => f.path === DEFAULT_ROBOT_PATH) ||
     DEFAULT_FILES[0];
 
   const [files, setFiles] = useState<VirtualFile[]>(DEFAULT_FILES);
@@ -72,11 +80,11 @@ export function App() {
 
   // Compile initial world
   const [compilationResult, setCompilationResult] = useState<CompilationResult>(() =>
-    compileSdfOrUrdf(initialFile.content, initialFile.path)
+    compileSdfOrUrdf(initialFile.content, initialFile.path, DEFAULT_FILES)
   );
 
   const [world, setWorld] = useState<ParsedWorld | null>(() => {
-    const res = compileSdfOrUrdf(initialFile.content, initialFile.path);
+    const res = compileSdfOrUrdf(initialFile.content, initialFile.path, DEFAULT_FILES);
     return res.world ? JSON.parse(JSON.stringify(res.world)) : null;
   });
 
@@ -118,10 +126,10 @@ export function App() {
     {
       id: 'init-1',
       cwd: '/home/ubuntu/workspace',
-      command: 'ros2 launch ros2_ws/ros_gz_sim.launch.py use_sim_time:=true',
+      command: `ros2 launch ${DEFAULT_LAUNCH_PATH} use_sim_time:=true`,
       output: `[INFO] [launch]: Default logging verbosity is set to INFO
 [INFO] [gz_sim-1]: Launching Gazebo Harmonic (gz-sim8) with separate ROS 2 & Gazebo workspaces...
-[INFO] [parameter_bridge-2]: Starting ros_gz_bridge parameter_bridge with ros2_ws/ros_gz_bridge.yaml
+[INFO] [parameter_bridge-2]: Starting ros_gz_bridge parameter_bridge with ${DEFAULT_BRIDGE_YAML_PATH}
   ├── /clock @ rosgraph_msgs/msg/Clock [ gz.msgs.Clock (GZ_TO_ROS)
   ├── /scan  @ sensor_msgs/msg/LaserScan [ gz.msgs.LaserScan (GZ_TO_ROS)
   ├── /imu   @ sensor_msgs/msg/Imu [ gz.msgs.IMU (GZ_TO_ROS)
@@ -202,12 +210,12 @@ export function App() {
     };
   }, [isIdeMinimized, ideWidthPct]);
 
-  // Synchronize `ros2_ws/ros_gz_bridge.yaml` file content when bridge rules change via UI
+  // Synchronize the bridge YAML file content when bridge rules change via UI
   const syncBridgeRulesToYamlFile = useCallback((nextRules: Ros2RuntimeState['bridgeRules']) => {
     const serialized = serializeRosGzBridgeYaml(nextRules);
     setFiles((prev) =>
       prev.map((f) =>
-        f.path === 'ros2_ws/ros_gz_bridge.yaml'
+        f.path === DEFAULT_BRIDGE_YAML_PATH
           ? { ...f, content: serialized, lastModified: Date.now() }
           : f
       )
@@ -217,7 +225,7 @@ export function App() {
   // Compile and optionally replace the running 3D world
   const compileFileContent = useCallback(
     (file: VirtualFile, applyToWorld: boolean) => {
-      const res = compileSdfOrUrdf(file.content, file.path);
+      const res = compileSdfOrUrdf(file.content, file.path, files);
       setCompilationResult(res);
 
       if (res.format === 'ros2_yaml' && res.isValid) {
@@ -322,8 +330,8 @@ export function App() {
     const simFile =
       activeFile.path.endsWith('.sdf') || activeFile.path.endsWith('.urdf')
         ? activeFile
-        : files.find((f) => f.path === 'urdf/diff_drive_rover.urdf') || files[0];
-    const res = compileSdfOrUrdf(simFile.content, simFile.path);
+        : files.find((f) => f.path === DEFAULT_ROBOT_PATH) || files[0];
+    const res = compileSdfOrUrdf(simFile.content, simFile.path, files);
     if (res.world) {
       const freshWorld: ParsedWorld = JSON.parse(JSON.stringify(res.world));
       setWorld(freshWorld);
@@ -367,9 +375,9 @@ export function App() {
     const target = files.find((f) => f.id === fileId);
     if (target) {
       const updatedFile = { ...target, content: newContent };
-      const res = compileSdfOrUrdf(newContent, updatedFile.path);
+      const res = compileSdfOrUrdf(newContent, updatedFile.path, files);
       setCompilationResult(res);
-      if (updatedFile.path === 'ros2_ws/ros_gz_bridge.yaml' && res.isValid) {
+      if (updatedFile.path === DEFAULT_BRIDGE_YAML_PATH && res.isValid) {
         const parsed = parseRosGzBridgeYaml(newContent);
         if (parsed.rules.length > 0) {
           setRos2State((prev) => ({
@@ -397,7 +405,7 @@ export function App() {
     const newPath = `${folder}/${finalName}`;
     const templateContent =
       templateType === 'urdf'
-        ? DEFAULT_FILES.find((f) => f.path === 'urdf/diff_drive_rover.urdf')?.content || ''
+        ? DEFAULT_FILES.find((f) => f.path === DEFAULT_ROBOT_PATH)?.content || ''
         : DEFAULT_FILES[0].content;
 
     const newFile: VirtualFile = {
@@ -654,7 +662,7 @@ export function App() {
   );
 
   const handleOpenBridgeYamlInIde = useCallback(() => {
-    const yamlFile = files.find((f) => f.path === 'ros2_ws/ros_gz_bridge.yaml');
+    const yamlFile = files.find((f) => f.path === DEFAULT_BRIDGE_YAML_PATH);
     if (yamlFile) {
       setActiveFileId(yamlFile.id);
       setIsIdeMinimized(false);
@@ -1051,10 +1059,9 @@ export function App() {
     maximizedPane === 'gazebo' || (maximizedPane === null && !isGazeboMinimized);
 
   // Active URDF XML for ViewFrames modal inside Ros2VisualizerPane
-  const activeUrdfXml =
-    activeFile.path.endsWith('.urdf')
-      ? activeFile.content
-      : files.find((f) => f.path === 'urdf/diff_drive_rover.urdf')?.content;
+  const activeUrdfXml = isRobotModelPath(activeFile.path)
+    ? resolveXacroIncludes(activeFile.content, activeFile.path, files).xml
+    : files.find((f) => f.path === DEFAULT_ROBOT_PATH)?.content;
 
   // Compute dynamic pane width styles for desktop flex layout (full width on mobile < 1024px)
   const getIdeStyle = (): React.CSSProperties => {
@@ -1265,7 +1272,7 @@ export function App() {
         ref={workspaceContainerRef}
         className="flex-1 flex flex-col lg:flex-row min-h-0 min-w-0 overflow-hidden relative"
       >
-        {/* PANE 1: VS Code IDE (`worlds/`, `urdf/`, `ros2_ws/` folders + Ubuntu 24.04 & ROS 2 Jazzy CLI) */}
+        {/* PANE 1: VS Code IDE (ros2_ws/src packages + Ubuntu 24.04 & ROS 2 Jazzy CLI) */}
         {showIde && (
           <section
             aria-label="VS Code ROS 2 and Gazebo Editor"

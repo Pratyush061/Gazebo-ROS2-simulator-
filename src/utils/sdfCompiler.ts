@@ -18,6 +18,9 @@ import {
   SimSensorType,
   SimVisual,
 } from '../types/simulation';
+import { DEFAULT_WORLD_PATH, isRobotModelPath } from '../data/ros2Workspace';
+import { resolveXacroIncludes } from '../urdf/xacroIncludes';
+import { compileUrdf } from '../urdf/urdfCompiler';
 import { buildWorldGzTopicsAndRos2Bridge } from './gzSystemsCatalog';
 import { parseRosGzBridgeYaml } from './rosGzBridgeEngine';
 
@@ -1426,7 +1429,8 @@ function parseGeometryNode(
  */
 export function compileSdfOrUrdf(
   xmlSource: string,
-  sourceFilePath = 'worlds/empty.sdf'
+  sourceFilePath: string = DEFAULT_WORLD_PATH,
+  workspaceFiles?: { path: string; content: string }[]
 ): CompilationResult {
   const startTime = performance.now();
 
@@ -1446,6 +1450,102 @@ export function compileSdfOrUrdf(
       isValid: !hasErr,
       format: 'ros2_yaml',
       diagnostics: yamlDiags,
+      world: null,
+      compileTimeMs: Math.round((performance.now() - startTime) * 100) / 100,
+    };
+  }
+
+  // Robot model files: inline xacro includes from the workspace, then expand
+  // xacro to plain URDF so the SDF converter only ever sees resolved XML.
+  if (isRobotModelPath(sourceFilePath)) {
+    const includeResult = workspaceFiles
+      ? resolveXacroIncludes(xmlSource, sourceFilePath, workspaceFiles)
+      : { xml: xmlSource, resolved: [], diagnostics: [] };
+    xmlSource = includeResult.xml;
+
+    const includeDiags: CompilerDiagnostic[] = includeResult.diagnostics.map((d) => ({
+      line: 1,
+      column: 1,
+      severity: 'error' as const,
+      code: 'XACRO_INCLUDE',
+      message: d.message,
+    }));
+
+    if (xmlSource.includes('${') || xmlSource.includes('<xacro:')) {
+      const expanded = compileUrdf(xmlSource);
+      const xacroDiags: CompilerDiagnostic[] = expanded.diagnostics
+        .filter((d) => d.severity !== 'info')
+        .map((d) => ({
+          line: d.line,
+          column: d.column ?? 1,
+          severity: d.severity,
+          code: d.id,
+          message: d.message,
+        }));
+      const allDiags = [...includeDiags, ...xacroDiags];
+
+      if (allDiags.some((d) => d.severity === 'error')) {
+        return {
+          isValid: false,
+          format: 'urdf',
+          diagnostics: allDiags,
+          world: null,
+          compileTimeMs: Math.round((performance.now() - startTime) * 100) / 100,
+        };
+      }
+      // A xacro macro library defines macros, not a robot: nothing to convert.
+      if (
+        expanded.isXacro &&
+        (expanded.xacroMacroCount ?? 0) > 0 &&
+        Object.keys(expanded.links).length === 0
+      ) {
+        return {
+          isValid: true,
+          format: 'urdf',
+          diagnostics: [
+            ...allDiags,
+            {
+              line: 1,
+              column: 1,
+              severity: 'info',
+              code: 'XACRO_MACRO_LIBRARY',
+              message: `Xacro macro library: defines ${expanded.xacroMacroCount} macro(s) and no robot links.`,
+            },
+          ],
+          world: null,
+          compileTimeMs: Math.round((performance.now() - startTime) * 100) / 100,
+        };
+      }
+
+      if (expanded.expandedUrdfXml) {
+        xmlSource = expanded.expandedUrdfXml;
+      }
+    } else if (includeDiags.some((d) => d.severity === 'error')) {
+      return {
+        isValid: false,
+        format: 'urdf',
+        diagnostics: includeDiags,
+        world: null,
+        compileTimeMs: Math.round((performance.now() - startTime) * 100) / 100,
+      };
+    }
+  }
+
+  // Package manifests, CMake and editor config are part of the workspace but
+  // are not simulation content: report them as valid, not as a broken world.
+  if (/(^|\/)(package\.xml|CMakeLists\.txt)$|\.(rviz|md|json|txt)$/.test(sourceFilePath)) {
+    return {
+      isValid: true,
+      format: 'ros2_yaml',
+      diagnostics: [
+        {
+          line: 1,
+          column: 1,
+          severity: 'info',
+          code: 'ROS2_NON_SIM_FILE',
+          message: `${sourceFilePath} is a package/build file — no simulation content to compile.`,
+        },
+      ],
       world: null,
       compileTimeMs: Math.round((performance.now() - startTime) * 100) / 100,
     };
@@ -2330,7 +2430,7 @@ export function createPrimitiveModelEntity(
   index: number,
   pose: Pose6D,
   startEntityId: number,
-  sourceFilePath = 'worlds/empty.sdf'
+  sourceFilePath: string = DEFAULT_WORLD_PATH
 ): SimModel {
   const name = `${shape}_${index}`;
   const linkName = `${name}_link`;
