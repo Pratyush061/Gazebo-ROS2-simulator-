@@ -1,0 +1,8 @@
+{
+  "name": "Final Gazebo+ROS2 Sim Working my version",
+  "description": "This is a working version of ros2 and gazebo simulator working version.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
